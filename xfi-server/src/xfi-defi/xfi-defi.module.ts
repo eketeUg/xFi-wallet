@@ -7,7 +7,6 @@ import {
   TransactionSchema,
 } from 'src/database/schemas/transactions.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { XfiDefiBaseService } from './xfi-defi-base.service';
 import { XfiDefiEthereumService } from './xfi-defi-ethereum.service';
 import { XfiDefiMantleService } from './xfi-defi-mantle.service';
 
@@ -19,17 +18,7 @@ import { XfiDefiMantleService } from './xfi-defi-mantle.service';
       { name: Transaction.name, schema: TransactionSchema },
     ]),
   ],
-  exports: [
-    XfiDefiSolService,
-    XfiDefiBaseService,
-    XfiDefiEthereumService,
-    XfiDefiMantleService,
-  ],
-  providers: [
-    XfiDefiSolService,
-    XfiDefiBaseService,
-    XfiDefiEthereumService,
-    XfiDefiMantleService,
-  ],
+  exports: [XfiDefiSolService, XfiDefiEthereumService, XfiDefiMantleService],
+  providers: [XfiDefiSolService, XfiDefiEthereumService, XfiDefiMantleService],
 })
 export class XfiDexModule {}
