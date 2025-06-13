@@ -12,7 +12,7 @@ export class TwitterAuthStrategy extends PassportStrategy(
       consumerKey: process.env.CONSUMER_KEY,
       consumerSecret: process.env.CONSUMER_SECRET,
       // callbackURL: ' http://localhost:3827/auth/twitter/callback',
-      callbackURL: 'https://app.eventblink.xyz/xfi/auth/twitter/callback',
+      callbackURL: 'https://app.eventblink.xyz/xfi-mantle/auth/twitter/callback',
       includeEmail: true,
     });
   }
