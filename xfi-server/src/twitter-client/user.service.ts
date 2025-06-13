@@ -17,7 +17,7 @@ export interface SolAsset {
   tokenMint: string;
   amount: string;
 }
-export type EvmChain = 'ethereum' | 'base';
+export type EvmChain = 'ethereum' | 'mantle';
 
 @Injectable()
 export class UserService {
@@ -97,10 +97,6 @@ export class UserService {
       .find({ userId })
       .sort({ createdAt: -1 })
       .exec();
-
-    // if (!transactions || transactions.length === 0) {
-    //   throw new NotFoundException('No transactions found for this user');
-    // }
 
     return transactions;
   }
@@ -196,31 +192,42 @@ export class UserService {
         ];
       }
 
-      case 'base': {
-        const [ethBalance, usdcBalance] = await Promise.all([
+      case 'mantle': {
+        const [ethBalance, usdcBalance, usdtBalance] = await Promise.all([
           this.walletService.getNativeEthBalance(
             user.evmWalletAddress,
-            process.env.BASE_RPC_URL,
+            process.env.MANTLE_RPC,
           ),
           this.walletService.getERC20Balance(
             user.evmWalletAddress,
-            '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-            process.env.BASE_RPC_URL,
+            '0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9',
+            process.env.MANTLE_RPC,
+          ),
+          this.walletService.getERC20Balance(
+            user.evmWalletAddress,
+            '0x201eba5cc46d216ce6dc03f6a759e8e766e956ae',
+            process.env.MANTLE_RPC,
           ),
         ]);
 
         return [
           {
-            tokenName: 'ethereum',
-            tokenSymbol: 'ETH',
+            tokenName: 'MANTLE',
+            tokenSymbol: 'MNT',
             tokenMint: '0x0000000000000000000000000000000000000000',
             amount: ethBalance.balance.toString(),
           },
           {
             tokenName: 'usdc',
             tokenSymbol: 'USDC',
-            tokenMint: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+            tokenMint: '0x09bc4e0d864854c6afb6eb9a9cdf58ac190d0df9',
             amount: usdcBalance.balance.toString(),
+          },
+          {
+            tokenName: 'usdt',
+            tokenSymbol: 'USDT',
+            tokenMint: '0x201eba5cc46d216ce6dc03f6a759e8e766e956ae',
+            amount: usdtBalance.balance.toString(),
           },
         ];
       }

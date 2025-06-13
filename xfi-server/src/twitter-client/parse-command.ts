@@ -4,13 +4,13 @@ import { Model } from 'mongoose';
 import { Transaction } from 'src/database/schemas/transactions.schema';
 import { User } from 'src/database/schemas/user.schema';
 import { WalletService } from 'src/wallet/wallet.service';
-import { XfiDefiBaseService } from 'src/xfi-defi/xfi-defi-base.service';
 import { XfiDefiSolService } from 'src/xfi-defi/xfi-defi-sol.service';
 import { ethers, Contract } from 'ethers';
 import L2ResolverAbi from './utils/l2ResolverAbi';
 import { XfiDefiEthereumService } from 'src/xfi-defi/xfi-defi-ethereum.service';
 import { TwitterClientBase } from './base.provider';
 import { UserService } from './user.service';
+import { XfiDefiMantleService } from 'src/xfi-defi/xfi-defi-mantle.service';
 
 const BASENAME_L2_RESOLVER_ADDRESS =
   '0xC6d566A56A1aFf6508b41f6c90ff131615583BCD';
@@ -46,28 +46,28 @@ interface ParsedCommand {
 }
 
 // --- Helper Data ---
-const NATIVE_TOKENS = ['sol', 'eth'];
+const NATIVE_TOKENS = ['sol', 'eth', 'mnt'];
 const STABLE_TOKENS = ['usdc', 'usdt'];
 
-// const CHAINS = ['solana', 'ethereum', 'base', 'arbitrum'];
+// const CHAINS = ['solana', 'ethereum', 'mantle', 'arbitrum'];
 
 @Injectable()
 export class ParseCommandService {
   private readonly logger = new Logger(ParseCommandService.name);
   private ethProvider: ethers.JsonRpcProvider;
-  private baseProvider: ethers.JsonRpcApiProvider;
+  private mantleProvider: ethers.JsonRpcApiProvider;
   constructor(
     private readonly walletService: WalletService,
     private readonly defiEthereumService: XfiDefiEthereumService,
+    private readonly defiMantleService: XfiDefiMantleService,
     private readonly dexService: XfiDefiSolService,
-    private readonly defiBaseService: XfiDefiBaseService,
     private readonly twitterClientBase: TwitterClientBase,
     private readonly userService: UserService,
     @InjectModel(User.name)
     readonly userModel: Model<User>,
   ) {
     this.ethProvider = new ethers.JsonRpcProvider(process.env.ETHEREUM_RPC);
-    this.baseProvider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL);
+    this.mantleProvider = new ethers.JsonRpcProvider(process.env.MANTLE_RPC);
   }
 
   //   private getEnsChainType(ensName: string): string {
@@ -92,7 +92,7 @@ export class ParseCommandService {
     const parts = identifier.toLowerCase().split('.');
 
     if (parts.length === 3 && parts[2] === 'eth') {
-      return parts[1]; // e.g., 'base' from 'dami.base.eth'
+      return parts[1]; // e.g., 'mantle' from 'dami.base.eth'
     }
 
     if (parts.length === 2 && parts[1] === 'eth') {
@@ -138,56 +138,6 @@ export class ParseCommandService {
     return ethers.hexlify(Buffer.concat([...buffers, Buffer.from([0])]));
   }
 
-  async getBaseName(address: string): Promise<string | null> {
-    try {
-      const addressReverseNode = this.convertReverseNodeToBytes(address, 8453);
-      const provider = this.baseProvider;
-
-      const contract = new Contract(
-        BASENAME_L2_RESOLVER_ADDRESS,
-        L2ResolverAbi,
-        provider,
-      );
-      const basename = await contract.name(addressReverseNode);
-
-      return basename;
-    } catch (error) {
-      this.logger.error('Error getting basename', error);
-      return null;
-    }
-  }
-
-  async resolveNameToAddress(name: string): Promise<string | null> {
-    try {
-      // 1. Encode the DNS name
-      const dnsEncodedName = this.encodeDnsName(name);
-
-      // 2. Encode the call to addr(bytes32)
-      const node = ethers.namehash(name);
-      const iface = new ethers.Interface([
-        'function addr(bytes32 node) view returns (address)',
-      ]);
-      const encodedCallData = iface.encodeFunctionData('addr', [node]);
-      const provider = this.baseProvider;
-
-      const contract = new Contract(
-        BASENAME_L2_RESOLVER_ADDRESS,
-        L2ResolverAbi,
-        provider,
-      );
-
-      // 3. Call the resolve function
-      const result = await contract.resolve(dnsEncodedName, encodedCallData);
-
-      // 4. Decode the returned data
-      const [resolvedAddress] = iface.decodeFunctionResult('addr', result);
-      return resolvedAddress;
-    } catch (error) {
-      console.error('Error resolving name:', error);
-      return null;
-    }
-  }
-
   // --- Helper Functions ---
   //   detectChain(word: string): Chain | undefined {
   //     const lower = word.toLowerCase();
@@ -204,7 +154,7 @@ export class ParseCommandService {
     if (normalized.includes('mantle')) return 'mantle';
     if (/^0x[a-fA-F0-9]{40}$/.test(chainOrToken)) return 'ethereum'; // EVM
     if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(chainOrToken)) return 'solana'; // Solana pubkey format
-    return 'ethereum'; // Default fallback
+    return 'mantle'; // Default fallback
   }
 
   detectTokenType(value: string): TokenType {
@@ -316,19 +266,11 @@ export class ParseCommandService {
     console.log(ensChain);
     switch (ensChain) {
       case 'ethereum':
+      case 'mantle':
         const ethAddress = await this.ethProvider.resolveName(name);
         console.log('ens name:', ethAddress);
         return {
           address: ethAddress,
-          type: 'ens',
-          value: name,
-        };
-
-      case 'base':
-        const baseAddress = await this.resolveNameToAddress(name);
-        console.log('ens name:', baseAddress);
-        return {
-          address: baseAddress,
           type: 'ens',
           value: name,
         };
@@ -403,20 +345,20 @@ export class ParseCommandService {
           data,
         );
         return response;
-      } else if (chain == 'base') {
+      } else if (chain == 'mantle') {
         const data: Partial<Transaction> = {
           userId: userKey.userId,
           transactionType: 'send',
-          chain: 'base',
+          chain: 'mantle',
           amount: amount,
-          token: { address: 'eth', tokenType: 'native' },
+          token: { address: 'mnt', tokenType: 'native' },
           receiver: { value: to, receiverType: 'wallet' },
           meta: {
             platform: 'twitter',
             originalCommand: originalCommand,
           },
         };
-        const response = await this.defiBaseService.sendEth(
+        const response = await this.defiMantleService.sendMNT(
           userKey.evmPK,
           amount,
           to,
@@ -482,11 +424,11 @@ export class ParseCommandService {
           data,
         );
         return response;
-      } else if (chain == 'base') {
+      } else if (chain == 'mantle') {
         const data: Partial<Transaction> = {
           userId: userKey.userId,
           transactionType: 'send',
-          chain: 'base',
+          chain: 'mantle',
           amount: amount,
           token: { address: token, tokenType: 'stable' },
           receiver: { value: to, receiverType: 'wallet' },
@@ -495,7 +437,7 @@ export class ParseCommandService {
             originalCommand: originalCommand,
           },
         };
-        const response = await this.defiBaseService.sendERC20(
+        const response = await this.defiMantleService.sendERC20(
           userKey.evmPK,
           token,
           amount,
@@ -592,7 +534,7 @@ export class ParseCommandService {
     const normalized = tweet.replace(/\s+/g, ' ').trim();
 
     const balanceRegex =
-      /\b(?:get(?:\s+me)?|check|show|see|what(?:'|’)?s|what\s+is|can\s+you\s+get|i\s+want\s+to\s+see)?\s*(?:my\s*)?(?:(solana|sol|ethereum|eth|base)\s+)?balance(?:\s*(?:on|of|for)?\s*(solana|sol|ethereum|eth|base))?\b/i;
+      /\b(?:get(?:\s+me)?|check|show|see|what(?:'|’)?s|what\s+is|can\s+you\s+get|i\s+want\s+to\s+see)?\s*(?:my\s*)?(?:(solana|sol|ethereum|mantle)\s+)?balance(?:\s*(?:on|of|for)?\s*(solana|sol|ethereum|eth|mantle))?\b/i;
 
     // for directMessages
     const createAccountRegex =
@@ -619,7 +561,7 @@ export class ParseCommandService {
               { new: true },
             );
 
-            return `Account Activated\n\nEVM ADDRESS:\n${updatedUser.evmWalletAddress}\n\nSOLANA ADDRESS:\n${updatedUser.svmWalletAddress}`;
+            return `Account Activated\n\nEVM ADDRESS:\n${updatedUser.evmWalletAddress}`;
           } else {
             const newUser = await this.getOrCreateUser(
               {
@@ -628,10 +570,10 @@ export class ParseCommandService {
               },
               true,
             );
-            return `Account created\n\nEVM ADDRESS:\n${newUser.evmWalletAddress}\n\nSOLANA ADDRESS:\n${newUser.svmWalletAddress}`;
+            return `Account created\n\nEVM ADDRESS:\n${newUser.evmWalletAddress}`;
           }
         }
-        const appUrl = process.env.APP_URL || 'https://x.com/xFi_bot';
+        const appUrl = process.env.APP_URL;
         return `Please go to ${appUrl} or send a direct message to create/activate your account to use this bot`;
       } else if (balanceMatch) {
         const rawChain = balanceMatch?.[1] || balanceMatch?.[2]; // either position
@@ -639,7 +581,7 @@ export class ParseCommandService {
         // const action = balanceMatch ? 'balance' : null;
         let solanaBalance;
         let ethBalance;
-        let baseBalance;
+        let mantleBalance;
         let formattedUserBalance;
         if (chain) {
           switch (chain) {
@@ -651,14 +593,14 @@ export class ParseCommandService {
               });
               return formattedUserBalance;
 
-            case 'base':
-              baseBalance = await this.userService.getUserEVMBalance(
+            case 'mantle':
+              mantleBalance = await this.userService.getUserEVMBalance(
                 userId,
-                'base',
+                'mantle',
               );
-              console.log(baseBalance);
+              console.log(mantleBalance);
               formattedUserBalance = this.formatBalances({
-                base: baseBalance,
+                mantle: mantleBalance,
               });
               return formattedUserBalance;
 
@@ -675,9 +617,9 @@ export class ParseCommandService {
 
             default:
               solanaBalance = await this.userService.getUserSVMBalance(userId);
-              baseBalance = await this.userService.getUserEVMBalance(
+              mantleBalance = await this.userService.getUserEVMBalance(
                 userId,
-                'base',
+                'mantle',
               );
               ethBalance = await this.userService.getUserEVMBalance(
                 userId,
@@ -685,26 +627,28 @@ export class ParseCommandService {
               );
               formattedUserBalance = this.formatBalances({
                 ethereum: ethBalance,
-                base: baseBalance,
+                mantle: mantleBalance,
                 solana: solanaBalance,
               });
               return formattedUserBalance;
           }
         }
         solanaBalance = await this.userService.getUserSVMBalance(userId);
-        baseBalance = await this.userService.getUserEVMBalance(userId, 'base');
+        mantleBalance = await this.userService.getUserEVMBalance(
+          userId,
+          'mantle',
+        );
         ethBalance = await this.userService.getUserEVMBalance(
           userId,
           'ethereum',
         );
         formattedUserBalance = this.formatBalances({
           ethereum: ethBalance,
-          base: baseBalance,
-          solana: solanaBalance,
+          mantle: mantleBalance,
         });
         return formattedUserBalance;
       } else if (createAccountMatch || getWalletMatch) {
-        return `Your Account:\n\nEVM ADDRESS:\n${user.evmWalletAddress}\n\nSOLANA ADDRESS:\n${user.svmWalletAddress}`;
+        return `Your Account:\n\nEVM ADDRESS:\n${user.evmWalletAddress}`;
       }
 
       const [decryptedSVMWallet, decryptedEvmWallet] = await Promise.all([
@@ -861,7 +805,7 @@ export class ParseCommandService {
     const value = raw.toLowerCase();
     if (value === 'sol' || value === 'solana') return 'solana';
     if (value === 'eth' || value === 'ethereum') return 'ethereum';
-    if (value === 'base') return 'base';
+    if (value === 'mantle') return 'mantle';
     return null;
   };
 
@@ -887,24 +831,4 @@ export class ParseCommandService {
 
     return result.trim(); // remove last extra newline
   }
-
-  // private formatBalances(balances: Record<string, any[]>): string {
-  //   let result = 'BALANCE:\n\n';
-
-  //   for (const [chain, tokens] of Object.entries(balances)) {
-  //     result += `chain: ${chain}\n`;
-
-  //     for (const token of tokens) {
-  //       const amount =
-  //         typeof token.amount === 'number'
-  //           ? token.amount
-  //           : parseFloat(token.amount);
-  //       result += `${amount} - ${token.tokenSymbol}\n`;
-  //     }
-
-  //     result += `\n`; // extra newline between chains
-  //   }
-
-  //   return result.trim(); // remove last extra newline
-  // }
 }

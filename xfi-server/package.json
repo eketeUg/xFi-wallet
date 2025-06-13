@@ -103,8 +103,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  },
-  "workspaces": [
-    "sdk/goat-sdk/plugins/*"
-  ]
+  }
 }

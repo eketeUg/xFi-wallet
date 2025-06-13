@@ -11,16 +11,6 @@ import { createWalletClient } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { mantle } from 'viem/chains';
 import { getOnChainTools } from '@goat-sdk/adapter-vercel-ai';
-import { moe } from '../../sdk/goat-sdk/plugins/moe/src';
-import {
-  USDC,
-  USDT,
-  erc20,
-  MODE,
-  WMNT,
-  MNT,
-  MOE,
-} from '../.././sdk/goat-sdk/plugins/erc20/src';
 import { viem } from '@goat-sdk/wallet-viem';
 
 const USDT_ADDRESS_MANTLE = '0x201eba5cc46d216ce6dc03f6a759e8e766e956ae';
@@ -35,38 +25,6 @@ export class XfiDefiMantleService {
     @InjectModel(Transaction.name)
     readonly transactionModel: Model<Transaction>,
   ) {}
-
-  async swapToken(pK: any, prompt: string) {
-    console.log(prompt);
-    try {
-      const privateKey = pK.startsWith('0x') ? pK : `0x${pK}`;
-      const account = privateKeyToAccount(privateKey as `0x${string}`);
-      const walletClient = createWalletClient({
-        account,
-        transport: http(process.env.RPC_URL),
-        chain: mantle,
-      });
-
-      const tools = await getOnChainTools({
-        wallet: viem(walletClient),
-        plugins: [moe(), erc20({ tokens: [USDC, USDT, MODE, WMNT, MNT, MOE] })],
-      });
-
-      const result = await generateText({
-        model: openai('gpt-4o-mini'),
-        tools: tools,
-        maxSteps: 10,
-        prompt: prompt,
-        onStepFinish: (event) => {
-          console.log(event.toolResults);
-        },
-      });
-      console.log(result.text);
-      return result.text;
-    } catch (error) {
-      console.log(error);
-    }
-  }
 
   async sendMNT(
     privateKey: string,

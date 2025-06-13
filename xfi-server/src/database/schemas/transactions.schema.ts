@@ -13,10 +13,10 @@ export class Transaction {
 
   @Prop({
     type: String,
-    enum: ['solana', 'ethereum', 'base', 'arbitrum'],
+    enum: ['solana', 'ethereum', 'base', 'arbitrum', 'mantle'],
     required: true,
   })
-  chain: 'solana' | 'ethereum' | 'base' | 'arbitrum';
+  chain: 'solana' | 'ethereum' | 'base' | 'arbitrum' | 'mantle';
 
   @Prop({ required: true })
   amount: string;
