@@ -48,7 +48,7 @@ export class TwitterOAuthController {
       });
       // return res.redirect(`http://localhost:5173/home?twitterId=${twitterUser.id}`);
       return res.redirect(
-        `https://xfibot.xyz/home?twitterId=${twitterUser.id}`,
+        `https://xfi-web.vercel.app/home?twitterId=${twitterUser.id}`,
       );
     } catch (err) {
       console.error(err);

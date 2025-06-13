@@ -54,7 +54,7 @@ export default function HomePage() {
     };
 
     const fetchAllBalances = async (userId) => {
-        const chains = ['ethereum', 'mantle'];
+        const chains = ['mantle'];
         const evmResult = {};
 
         for (let chain of chains) {
@@ -168,7 +168,7 @@ export default function HomePage() {
                         <div className="flex justify-between items-start gap-4">
                             <span className="text-gray-400 mt-1">Selected Chains</span>
                             <div className="flex flex-col gap-2">
-                                {["Mantle", "Ethereum"].map((chain) => (
+                                {["Mantle"].map((chain) => (
                                     <label key={chain} className="flex items-center gap-2">
                                         <input
                                             type="checkbox"
