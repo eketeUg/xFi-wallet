@@ -32,7 +32,7 @@ export default function HomePage() {
 
     const fetchUserData = async (id) => {
         try {
-            const res = await fetch(`https://app.eventblink.xyz/xfi/users/${id}`);
+            const res = await fetch(`https://app.eventblink.xyz/xfi-mantle/users/${id}`);
             const data = await res.json();
             if (data.chains === null) data.chains = [];
             setUser(data);
@@ -44,7 +44,7 @@ export default function HomePage() {
 
     const fetchTransactions = async (id) => {
         try {
-            const res = await fetch(`https://app.eventblink.xyz/xfi/users/history/${id}`);
+            const res = await fetch(`https://app.eventblink.xyz/xfi-mantle/users/history/${id}`);
             const data = await res.json();
             setTransactions(Array.isArray(data) ? data : []);
         } catch (err) {
@@ -59,7 +59,7 @@ export default function HomePage() {
 
         for (let chain of chains) {
             try {
-                const res = await fetch(`https://app.eventblink.xyz/xfi/users/${userId}/evm-balance?chain=${chain}`);
+                const res = await fetch(`https://app.eventblink.xyz/xfi-mantle/users/${userId}/evm-balance?chain=${chain}`);
                 const data = await res.json();
 
                 evmResult[capitalize(chain)] = data.map(({ tokenSymbol, tokenName, amount }) => ({
@@ -75,7 +75,7 @@ export default function HomePage() {
         setEvmBalances(evmResult);
 
         try {
-            const res = await fetch(`https://app.eventblink.xyz/xfi/users/${userId}/svm-balance`);
+            const res = await fetch(`https://app.eventblink.xyz/xfi-mantle/users/${userId}/svm-balance`);
             const data = await res.json();
 
             const svm = data.map(({ tokenSymbol, tokenName, amount }) => ({
@@ -99,7 +99,7 @@ export default function HomePage() {
 
         const userId = localStorage.getItem("twitterId");
         try {
-            await fetch(`https://app.eventblink.xyz/xfi/users/${userId}`, {
+            await fetch(`https://app.eventblink.xyz/xfi-mantle/users/${userId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ chains: updatedChains }),
